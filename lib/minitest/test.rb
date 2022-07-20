@@ -211,11 +211,10 @@ module Minitest
     def neuter_exception e
       bt = e.backtrace
       msg = e.message.dup
-
-      new_exception e.class, msg, bt            # e.class can be a problem...
-    rescue TypeError
       msg.prepend "Neutered Exception #{e.class}: "
 
+      new_exception RuntimeError, msg, bt
+    rescue TypeError
       new_exception RuntimeError, msg, bt, true # but if this raises, we die
     end
 
