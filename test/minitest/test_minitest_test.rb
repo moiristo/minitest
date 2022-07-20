@@ -913,6 +913,44 @@ class TestMinitestRunnable < Minitest::Test
     Object.const_set :RuntimeError, old_runtime
   end
 
+  def test_spec_marshal_with_custom_constructor_exception
+    klass = describe("whatever") {
+      it("raises, badly") {
+        customException = Class.new(StandardError) do
+          def initialize(mock)
+            super(mock.text)
+          end
+        end
+
+        mock = Minitest::Mock.new
+        mock.expect :text, "this is bad!"
+
+        raise customException.new(mock)
+      }
+    }
+
+    rm = klass.runnable_methods.first
+
+    # Run the test
+    @tc = klass.new(rm).run
+
+    assert_kind_of Minitest::Result, @tc
+    assert_instance_of Minitest::UnexpectedError, @tc.failure
+
+    msg = @tc.failure.error.message
+    assert_includes msg, "Neutered Exception #<Class:"
+    assert_includes msg, "this is bad!"
+
+    # Pass it over the wire
+    over_the_wire = Marshal.load Marshal.dump @tc
+
+    assert_equal @tc.time,       over_the_wire.time
+    assert_equal @tc.name,       over_the_wire.name
+    assert_equal @tc.assertions, over_the_wire.assertions
+    assert_equal @tc.failures,   over_the_wire.failures
+    assert_equal @tc.klass,      over_the_wire.klass
+  end
+
   def test_spec_marshal_with_exception__better_error_typeerror
     klass = describe("whatever") {
       it("raises with binding") {
